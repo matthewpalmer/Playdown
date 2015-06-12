@@ -1,0 +1,16 @@
+INPUT=$(ls Tests/*.playground)
+tmp="Tests/tmp.out"
+
+for file in $INPUT
+do
+  swift Playdown.swift "$file" > "$tmp"
+  fn="Tests/"$(basename "$file")".expected"
+  diff "$tmp" "$fn"
+
+  if [ $? -ne 0 ]
+  then
+    echo "$file - failed"
+  else
+    echo "$file - passed"
+  fi
+done
