@@ -136,186 +136,13 @@ extension String {
     }
 }
 
-extension NSRange {
-    static func minimizeRanges(ranges: [NSRange]) -> Array<NSRange> {
-        // Sort by starting first, then by ending last for identical start locations
-        let sortedRanges = ranges.sorted { (a, b) -> Bool in
-            if a.location < b.location {
-                return true
-            }
-            
-            if a.location == b.location && a.length > b.length {
-                return true
-            }
-            
-            return false
-        }
-        
-        
-        var lastStartLocation = 0
-        var minimalSetOfRanges: [NSRange] = []
-        
-        for i in 0 ..< sortedRanges.count {
-            let range = sortedRanges[i]
-            
-            // We sorted the ranges so that we don't need to worry about this
-            if lastStartLocation < range.location + range.length {
-                minimalSetOfRanges.append(range)
-                lastStartLocation = range.location + range.length
-            }
-        }
-        
-        return minimalSetOfRanges
-    }
-}
-
-extension NSRange {
-    func complementSubranges(ranges: [NSRange]) -> [NSRange] {
-        let fullRange = self
-        let minimalRanges = NSRange.minimizeRanges(ranges)
-        
-        var missingRanges: [NSRange] = []
-        var lastRange: NSRange?
-        
-        for range in minimalRanges {
-            // If there is any space between the current range and the last range in the minimal set, then we need to fill it.
-            if lastRange == nil {
-                // The first range in the list
-                if range.location > 0 {
-                    let fillRange = NSMakeRange(0, range.location)
-                    missingRanges.append(fillRange)
-                }
-            } else {
-                if range.location > lastRange!.location + lastRange!.length {
-                    let lastEnd = lastRange!.location + lastRange!.length
-                    let fillRange: NSRange = NSMakeRange(lastEnd, range.location - lastEnd)
-                    missingRanges.append(fillRange)
-                }
-            }
-            
-            lastRange = range
-        }
-        
-        // Add the last range, if needed
-        if let lastRange = lastRange {
-            if lastRange.location + lastRange.length < fullRange.length {
-                let lastEnd = lastRange.location + lastRange.length
-                let difference = fullRange.length - lastEnd
-                let endRange = NSMakeRange(lastEnd, difference)
-                missingRanges.append(endRange)
-            }
-        }
-        
-        return missingRanges
-    }
-}
-
-struct PlaygroundFile {
-    let contents: String
-    
-    func markdownFormat() -> String {
-        var error: NSError?
-        let blockRanges = contents.subrangesMatchingPattern("^/\\*:(.*)?\\*/", options: .AnchorsMatchLines, error: &error)
-        let singleLineRanges = contents.subrangesMatchingPattern("^//:(.*)$", options: .AnchorsMatchLines, error: &error)
-        
-        let fullRange = NSMakeRange(0, count(contents))
-        
-        let coal: [NSRange] = blockRanges + singleLineRanges
-        println(coal)
-
-        let comp = fullRange.complementSubranges(coal)
-        println(comp)
-
-        enum MDType {
-            case SingleLine, Block, Code, Undefined
-        }
-        
-        var parts: [(MDType, NSRange)] = []
-        
-        for code in comp {
-            if code.length > 1 {
-                parts.append((MDType.Code, code))
-            }
-        }
-        
-        for block in blockRanges {
-            parts.append((MDType.Block, block))
-        }
-        
-        for line in singleLineRanges {
-            parts.append((MDType.SingleLine, line))
-        }
-        
-        let sortedParts = parts.sorted { (a, b) -> Bool in
-            if a.1.location < b.1.location {
-                return true
-            }
-            
-            return false
-        }
-        
-        var output = ""
-        var lastState = MDType.Undefined
-        
-        let contentsAsNSString = contents as NSString
-
-        for pair in sortedParts {
-            let substr = contentsAsNSString.substringWithRange(pair.1)
-            
-            if pair.0 == .Code {
-                // Strip leading newlines from code
-                let strippedNewLines = substr.stringByTrimmingCharactersInSet(NSCharacterSet.newlineCharacterSet())
-
-                if lastState == .Undefined {
-                    output += "```\n\(strippedNewLines)\n```"
-                } else {
-                    if lastState == .SingleLine {
-                        println("Last state SNL $$$\(strippedNewLines)$$$")
-                        output += "\n\n```\n\(strippedNewLines)\n```"
-                    } else {
-                        output += "\n```\n\(strippedNewLines)\n```"
-                    }
-                    
-                }
-                
-            } else if pair.0 == .SingleLine {
-                let singleLineStartPattern = "^//:\\s*"
-                let singleLineRegex = NSRegularExpression(pattern: singleLineStartPattern, options: NSRegularExpressionOptions.AnchorsMatchLines, error: &error)
-                let strippedPredeterminer = singleLineRegex?.stringByReplacingMatchesInString(substr, options: nil, range: NSMakeRange(0, count(substr)), withTemplate: "")
-                
-                if lastState == .Code {
-                    output += "\n\n"
-                }
-
-                if lastState == .SingleLine {
-                    output += "\n"
-                }
-                
-                output += strippedPredeterminer!
-            } else if pair.0 == .Block {
-                let strippedPredeterminer = substr.stringByReplacingOccurrencesOfString("/*:", withString: "", options: NSStringCompareOptions.AnchoredSearch, range: nil)
-                let strippedPostDeterminer = strippedPredeterminer.stringByReplacingOccurrencesOfString("*/", withString: "", options: NSStringCompareOptions.AnchoredSearch | NSStringCompareOptions.BackwardsSearch, range: nil)
-                
-                if lastState == .SingleLine {
-                    output += "\n\n"
-                }
-                
-                if lastState == .Code {
-                    output += "\n"
-                }
-                
-                output += strippedPostDeterminer
-            }
-            
-            lastState = pair.0
-        }
-        
-        return output
-    }
-}
-
 struct Playdown {
     let streamReader: StreamReader!
+    let SingleLineTextBeginningPattern = "^//:"
+    let MultilineTextBeginningPattern = "/\\*:"
+    let MultilineTextEndingPattern = "\\*/"
+    let MarkdownCodeStartDelimiter = "```swift"
+    let MarkdownCodeEndDelimiter = "```\n"
 
     enum LineType {
         case SingleLineText, MultilineText, SwiftCode
@@ -325,13 +152,10 @@ struct Playdown {
         streamReader = StreamReader(path: filename)
     }
     
-    func markdown() -> String {
+    func markdown() {
         var lineState: LineType = .SwiftCode
         var previousLineState: LineType? = nil
         
-        let SingleLineTextBeginningPattern = "^//:"
-        let MultilineTextBeginningPattern = "/\\*:"
-        let MultilineTextEndingPattern = "\\*/"
         let options = NSRegularExpressionOptions.AllowCommentsAndWhitespace
         
         for line in streamReader {
@@ -352,28 +176,56 @@ struct Playdown {
                 lineState = .SwiftCode
             }
             
+            let outputText: String!
+            
             if previousLineState == nil {
                 // This is the first line
-                if !singleLineBeginning && !multiLineBeginning {
-                    println("```")
+                
+                switch lineState {
+                case .SingleLineText:
+                    outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
+                case .MultilineText:
+                    outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
+                default:
+                    if !singleLineBeginning && !multiLineBeginning {
+                        outputText = stringByAlteringCodeFencing(line)
+                    } else {
+                        outputText = line
+                    }
+                }
+            } else {
+                // This is a regular line
+                // Old state -> Current state
+                
+                switch (previousLineState!, lineState) {
+                // Swift code -> Other
+                case (.SwiftCode, .SwiftCode):
+                    outputText = line
+                case (.SwiftCode, .SingleLineText):
+                    outputText = MarkdownCodeEndDelimiter + stringByStrippingSingleLineTextMetacharactersFromString(line)
+                case (.SwiftCode, .MultilineText):
+                    outputText = MarkdownCodeEndDelimiter + stringByStrippingMultilineTextMetacharactersFromString(line)
+                
+                // Single line -> Other
+                case (.SingleLineText, .SwiftCode):
+                    outputText = stringByAlteringCodeFencing(line)
+                case (.SingleLineText, .SingleLineText):
+                    outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
+                case (.SingleLineText, .MultilineText):
+                    outputText = stringByStrippingMultilineTextMetacharactersFromString(line)
+                    
+                // Multiline -> Other
+                case (.MultilineText, .SwiftCode):
+                    outputText = stringByAlteringCodeFencing(line)
+                case (.MultilineText, .SingleLineText):
+                    outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
+                case (.MultilineText, .MultilineText):
+                    outputText = stringByStrippingMultilineTextMetacharactersFromString(line)
                 }
                 
-                println(line)
-            } else {
-                switch (previousLineState!, lineState) {
-                case (.SwiftCode, .SwiftCode):
-                    println(line)
-                case (_, .SwiftCode):
-                    println("```")
-                    println(line)
-                case (.SwiftCode, _):
-                    println("```")
-                    println(line)
-                default:
-                    println(line)
-                    
-                }
             }
+            
+            println(outputText)
             
             previousLineState = lineState
             
@@ -389,10 +241,32 @@ struct Playdown {
         
         // Handle the closing tags
         if lineState == .SwiftCode && previousLineState == .SwiftCode {
-            println("```")
+            println(MarkdownCodeEndDelimiter)
+        }
+    }
+    
+    func stringByStrippingSingleLineTextMetacharactersFromString(string: String) -> String {
+        return string.stringByReplacingOccurrencesOfString("//: ", withString: "")
+    }
+    
+    func stringByStrippingMultilineTextMetacharactersFromString(string: String) -> String {
+        let strippedLine = string.stringByReplacingOccurrencesOfString("/*:", withString: "")
+                                 .stringByReplacingOccurrencesOfString("*/", withString: "")
+        return strippedLine
+    }
+    
+    func stringByAlteringCodeFencing(string: String) -> String {
+        let outputText: String
+        
+        // Add a newline between the markdown delimiter if necessary
+        if string.matchesPattern("\\n", options: nil, error: nil) || count(string) == 0 {
+            // Empty line
+            outputText = "\n" + MarkdownCodeStartDelimiter + string
+        } else {
+            outputText = MarkdownCodeStartDelimiter + "\n" + string
         }
         
-        return ""
+        return outputText
     }
 }
 
@@ -405,7 +279,7 @@ struct Main {
 
         let filename = Process.arguments[1]
         let playdown = Playdown(filename: filename)
-        println(playdown.markdown())
+        playdown.markdown()
     }
 }
 

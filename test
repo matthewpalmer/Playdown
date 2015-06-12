@@ -5,7 +5,7 @@ for file in $INPUT
 do
   swift Playdown.swift "$file" > "$tmp"
   fn="Tests/"$(basename "$file")".expected"
-  diff "$tmp" "$fn"
+  diff -Bwu "$tmp" "$fn"
 
   if [ $? -ne 0 ]
   then

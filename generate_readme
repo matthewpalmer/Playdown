@@ -1,0 +1,2 @@
+#!/bin/sh
+swift Playdown.swift Tests/3.playground > README.markdown

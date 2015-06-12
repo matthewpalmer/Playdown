@@ -1,11 +1,11 @@
-```
+```swift
 println("Playdown")
 ```
 
 Convert a Swift playground to Markdown
 Perfect for blog posts
 
-```
+```swift
 var i = 0
 i++
 ```
@@ -13,6 +13,6 @@ i++
 # Use Markdown in your comments!
 Check the documentation at Apple's website
 
-```
+```swift
 println(i)
 ```
