@@ -1,5 +1,5 @@
 Playdown - *noun*: A place where people convert Swift Playgrounds to Markdown
-> This README was converted from a [Swift Playground](tests/3.playground)!
+> This README was converted from the playground at `tests/3.playground`!
 
 ```swift
 println("Playdown converts your Swift playgrounds to Markdown")
