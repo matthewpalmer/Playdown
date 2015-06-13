@@ -10,6 +10,12 @@ do
   if [ $? -ne 0 ]
   then
     echo "$file - failed"
+    echo
+    echo "Output"
+    echo "======"
+    echo
+    swift Playdown.swift "$file"
+    echo
   else
     echo "$file - passed"
   fi
