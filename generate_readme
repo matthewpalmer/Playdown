@@ -1,2 +1,2 @@
 #!/bin/sh
-swift Playdown.swift Tests/3.playground > README.markdown
+swift Playdown.swift README.swift > README.markdown
