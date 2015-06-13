@@ -185,7 +185,8 @@ struct Playdown {
                 case .SingleLineText:
                     outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
                 case .MultilineText:
-                    outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
+                    // The first line of a multiline comment is never displayed (it's an optional comment)
+                    outputText = "" // stringByStrippingSingleLineTextMetacharactersFromString(line)
                 default:
                     if !singleLineBeginning && !multiLineBeginning {
                         outputText = stringByAlteringCodeFencing(line)
@@ -204,7 +205,8 @@ struct Playdown {
                 case (.SwiftCode, .SingleLineText):
                     outputText = MarkdownCodeEndDelimiter + stringByStrippingSingleLineTextMetacharactersFromString(line)
                 case (.SwiftCode, .MultilineText):
-                    outputText = MarkdownCodeEndDelimiter + stringByStrippingMultilineTextMetacharactersFromString(line)
+                    // The first line of a multiline comment is never displayed (it's an optional comment)
+                    outputText = MarkdownCodeEndDelimiter + "" // stringByStrippingMultilineTextMetacharactersFromString(line)
                 
                 // Single line -> Other
                 case (.SingleLineText, .SwiftCode):
@@ -212,7 +214,8 @@ struct Playdown {
                 case (.SingleLineText, .SingleLineText):
                     outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
                 case (.SingleLineText, .MultilineText):
-                    outputText = stringByStrippingMultilineTextMetacharactersFromString(line)
+                    // The first line of a multiline comment is never displayed (it's an optional comment)
+                    outputText = "" // stringByStrippingMultilineTextMetacharactersFromString(line)
                     
                 // Multiline -> Other
                 case (.MultilineText, .SwiftCode):
