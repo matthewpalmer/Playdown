@@ -1,6 +1,6 @@
 {
   "name": "playdown",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Convert Swift Playgrounds to Markdown",
   "main": "index.js",
   "directories": {
