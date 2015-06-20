@@ -1,2 +1,3 @@
 Tests/tmp.out
+*.log
 NSRange_subranges.swift
