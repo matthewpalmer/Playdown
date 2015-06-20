@@ -27,8 +27,5 @@
   "homepage": "https://github.com/matthewpalmer/Playdown",
   "bin": {
     "playdown": "./Playdown.swift"
-  },
-  "dependencies": {
-    "shelljs": "^0.5.1"
   }
 }

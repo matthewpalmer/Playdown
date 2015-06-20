@@ -1,5 +1,5 @@
 # Playdown
-**Playdown** - *noun*: A place where people convert Swift Playgrounds to Markdown
+**Playdown** — *noun*: A place where people convert Swift Playgrounds to Markdown
 
 ```swift
 println("This README was converted from README.swift!")
@@ -9,14 +9,20 @@ println("This README was converted from README.swift!")
 # Usage
 Playdown was made to be run from the Terminal.
 
-1. Download Playdown.swift
-2. Run it with `swift Playdown.swift YourPlayground/Contents.swift`
+Install with npm, and run Playdown on any Swift file
+
+```
+$ npm install -g playdown
+$ playdown Contents.swift
+```
+
+Alternatively, you can download `Playdown.swift`, put it in the right directory, and run it with `swift Playdown.swift Contents.swift`.
 
 
 ```swift
 func use() {
-    Playdown.download()
-    Playdown.run("YourPlayground/Contents.swift") // Works for any .swift file!
+    npm.install("playdown", options: "-g")
+    Terminal.run("playdown Contents.swift") // Works for any .swift file!
 }
 
 ```
