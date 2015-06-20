@@ -1,0 +1,34 @@
+{
+  "name": "Playdown",
+  "version": "0.0.1",
+  "description": "Convert Swift Playgrounds to Markdown",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "./test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matthewpalmer/Playdown.git"
+  },
+  "keywords": [
+    "ios",
+    "swift",
+    "playground",
+    "markdown"
+  ],
+  "author": "Matthew Palmer",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/matthewpalmer/Playdown/issues"
+  },
+  "homepage": "https://github.com/matthewpalmer/Playdown",
+  "bin": {
+    "playdown": "./Playdown.swift"
+  },
+  "dependencies": {
+    "shelljs": "^0.5.1"
+  }
+}
