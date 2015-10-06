@@ -50,9 +50,9 @@ class StreamReader  {
         }
         
         // Read data chunks from file until a line delimiter is found:
-        var range = buffer.rangeOfData(delimData, options: nil, range: NSMakeRange(0, buffer.length))
+        var range = buffer.rangeOfData(delimData, options: [], range: NSMakeRange(0, buffer.length))
         while range.location == NSNotFound {
-            var tmpData = fileHandle.readDataOfLength(chunkSize)
+            let tmpData = fileHandle.readDataOfLength(chunkSize)
             if tmpData.length == 0 {
                 // EOF or read error.
                 atEof = true
@@ -67,7 +67,7 @@ class StreamReader  {
                 return nil
             }
             buffer.appendData(tmpData)
-            range = buffer.rangeOfData(delimData, options: nil, range: NSMakeRange(0, buffer.length))
+            range = buffer.rangeOfData(delimData, options: [], range: NSMakeRange(0, buffer.length))
         }
         
         // Convert complete line (excluding the delimiter) to a string:
@@ -94,22 +94,22 @@ class StreamReader  {
 }
 
 extension StreamReader : SequenceType {
-    func generate() -> GeneratorOf<String> {
-        return GeneratorOf<String> {
+    func generate() -> AnyGenerator<String> {
+        return anyGenerator{
             return self.nextLine()
         }
     }
 }
 
 extension String {
-    func substringsMatchingPattern(let pattern: String, let options: NSRegularExpressionOptions, let matchGroup: Int, error: NSErrorPointer) -> [String] {
-        let range = NSMakeRange(0, count(self))
-        let regex = NSRegularExpression(pattern: pattern, options: options, error: error)
-        let matches = regex?.matchesInString(self, options: nil, range: range)
+    func substringsMatchingPattern(let pattern: String, let options: NSRegularExpressionOptions, let matchGroup: Int) throws -> [String] {
+        let range = NSMakeRange(0, (self as NSString).length)
+        let regex = try NSRegularExpression(pattern: pattern, options: options)
+        let matches = regex.matchesInString(self, options: [], range: range)
         
         var output: [String] = []
 
-        for match in matches as! [NSTextCheckingResult] {
+        for match in matches  {
             let matchRange = match.rangeAtIndex(matchGroup)
             let matchString = (self as NSString).substringWithRange(matchRange)
             output.append(matchString as String)
@@ -118,10 +118,10 @@ extension String {
         return output
     }
     
-    func matchesPattern(let pattern: String, let options: NSRegularExpressionOptions, error: NSErrorPointer) -> Bool {
-        let range = NSMakeRange(0, count(self))
-        let regex = NSRegularExpression(pattern: pattern, options: options, error: error)
-        let matches = regex?.firstMatchInString(self, options: nil, range: range)
+    func matchesPattern(let pattern: String, let options: NSRegularExpressionOptions) throws -> Bool {
+        let range = NSMakeRange(0, (self as NSString).length)
+        let regex = try NSRegularExpression(pattern: pattern, options: options)
+        let matches = regex.firstMatchInString(self, options: [], range: range)
         
         if matches == nil {
             return false
@@ -130,10 +130,10 @@ extension String {
         }
     }
     
-    func subrangesMatchingPattern(let pattern: String, let options: NSRegularExpressionOptions, error: NSErrorPointer) -> [NSRange] {
-        let range = NSMakeRange(0, count(self))
-        let regex = NSRegularExpression(pattern: pattern, options: options, error: error)
-        let matches = regex?.matchesInString(self, options: nil, range: range) as! [NSTextCheckingResult]
+    func subrangesMatchingPattern(let pattern: String, let options: NSRegularExpressionOptions) throws -> [NSRange] {
+        let range = NSMakeRange(0, (self as NSString).length)
+        let regex = try NSRegularExpression(pattern: pattern, options: options)
+        let matches = regex.matchesInString(self, options: [], range: range)
         return matches.map { return $0.rangeAtIndex(0) }
     }
 }
@@ -154,18 +154,16 @@ struct Playdown {
         streamReader = StreamReader(path: filename)
     }
     
-    func markdown() {
+    func markdown() throws {
         var lineState: LineType = .SwiftCode
         var previousLineState: LineType? = nil
         
         let options = NSRegularExpressionOptions.AllowCommentsAndWhitespace
         
         for line in streamReader {
-            var error: NSError?
-            
-            let singleLineBeginning = line.matchesPattern(SingleLineTextBeginningPattern, options: options, error: &error)
-            let multiLineBeginning = line.matchesPattern(MultilineTextBeginningPattern, options: options, error: &error)
-            let multiLineEnding = line.matchesPattern(MultilineTextEndingPattern, options: options, error: &error)
+            let singleLineBeginning = try line.matchesPattern(SingleLineTextBeginningPattern, options: options)
+            let multiLineBeginning = try line.matchesPattern(MultilineTextBeginningPattern, options: options)
+            let multiLineEnding = try line.matchesPattern(MultilineTextEndingPattern, options: options)
             
             // Switch into a regular-text line if necessary
             if singleLineBeginning  {
@@ -191,7 +189,7 @@ struct Playdown {
                     outputText = "" // stringByStrippingSingleLineTextMetacharactersFromString(line)
                 default:
                     if !singleLineBeginning && !multiLineBeginning {
-                        outputText = stringByAlteringCodeFencing(line)
+                        outputText = try stringByAlteringCodeFencing(line)
                     } else {
                         outputText = line
                     }
@@ -212,7 +210,7 @@ struct Playdown {
                 
                 // Single line -> Other
                 case (.SingleLineText, .SwiftCode):
-                    outputText = stringByAlteringCodeFencing(line)
+                    outputText = try stringByAlteringCodeFencing(line)
                 case (.SingleLineText, .SingleLineText):
                     outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
                 case (.SingleLineText, .MultilineText):
@@ -221,7 +219,7 @@ struct Playdown {
                     
                 // Multiline -> Other
                 case (.MultilineText, .SwiftCode):
-                    outputText = stringByAlteringCodeFencing(line)
+                    outputText = try stringByAlteringCodeFencing(line)
                 case (.MultilineText, .SingleLineText):
                     outputText = stringByStrippingSingleLineTextMetacharactersFromString(line)
                 case (.MultilineText, .MultilineText):
@@ -230,7 +228,7 @@ struct Playdown {
                 
             }
             
-            println(outputText)
+            print(outputText)
             
             previousLineState = lineState
             
@@ -246,7 +244,7 @@ struct Playdown {
         
         // Handle the closing tags
         if lineState == .SwiftCode && previousLineState == .SwiftCode {
-            println(MarkdownCodeEndDelimiter)
+            print(MarkdownCodeEndDelimiter)
         }
     }
     
@@ -260,11 +258,11 @@ struct Playdown {
         return strippedLine
     }
     
-    func stringByAlteringCodeFencing(string: String) -> String {
+    func stringByAlteringCodeFencing(string: String) throws -> String {
         let outputText: String
         
         // Add a newline between the markdown delimiter if necessary
-        if string.matchesPattern("\\n", options: nil, error: nil) || count(string) == 0 {
+        if try string.matchesPattern("\\n", options: []) || (string as NSString).length == 0 {
             // Empty line
             outputText = "\n" + MarkdownCodeStartDelimiter + string
         } else {
@@ -275,17 +273,28 @@ struct Playdown {
     }
 }
 
+enum Error: String, ErrorType, CustomStringConvertible {
+    case FilenameRequired = "Filename Required"
+    var description: String {
+        return self.rawValue
+    }
+}
+
 struct Main {
-    init() {
+    init() throws {
         if Process.arguments.count < 2 {
-            println("Filename required.")
-            assert(false);
+            throw Error.FilenameRequired
         }
 
         let filename = Process.arguments[1]
         let playdown = Playdown(filename: filename)
-        playdown.markdown()
+        try playdown.markdown()
     }
 }
 
-Main()
+do {
+    let _ = try Main()
+} catch {
+    print(error)
+    exit(1)
+}
